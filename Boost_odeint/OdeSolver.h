@@ -31,6 +31,6 @@ void save(std::string filename, double t, std::vector<double> values);
 void solve(ODE *ode, double tfinal, double dt, std::vector<double> times, std::vector<std::string> varNames, 
                 std::vector<double> u0, std::string fname); 
 
-void plot(ODE *ode, std::vector<double> times, int id, std::string vname, std::string fname);
+void plot(std::vector<double> times, int id, std::string vname, std::string fname);
 
 #endif 

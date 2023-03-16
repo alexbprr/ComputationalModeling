@@ -84,17 +84,21 @@ std::vector<std::vector<double>> readCSV_MultidimensionalArray(std::string fname
     return array;
 }
 
-void plot(ODE *ode, std::vector<double> times, int id, std::string vname, std::string fname){    
+void plot(std::vector<double> times, int id, std::string vname, std::string fname){    
     std::vector<std::vector<double>> data = readCSV_MultidimensionalArray(fname);
     std::vector<double> col;
     for (auto& row: data){    
         col.push_back(row.at(id));    
     }
     assert(times.size() == col.size());
-    
+
     plt::figure_size(1200, 780);
     plt::xlabel("days");
     plt::plot(times, col, {{"label", vname}});
     plt::legend();
-    plt::save("./plots.png");
+    
+    stringstream ss;
+    ss << vname << "_plot.png";
+    plt::save(ss.str());
+    ss.str("");
 }
