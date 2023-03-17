@@ -26,10 +26,12 @@ typedef struct TODE {
 
 void odesystem(const std::vector<double> &u , std::vector<double> &dudt , const double /* t */) ;
 
-void save(std::string filename, double t, std::vector<double> values); 
-
-void solve(ODE *ode, double tfinal, double dt, std::vector<double> times, std::vector<std::string> varNames, 
+void solve(ODE *ode, double tfinal, double dt, std::vector<std::string> varNames, 
                 std::vector<double> u0, std::string fname); 
+
+void createFile(std::string name, std::vector<std::string> varNames); 
+
+void save(std::string filename, double t, std::vector<double> values); 
 
 void plot(std::vector<double> times, int id, std::string vname, std::string fname);
 

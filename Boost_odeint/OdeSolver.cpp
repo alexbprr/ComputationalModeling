@@ -1,12 +1,7 @@
-#include <xtensor/xarray.hpp>
-#include <xtensor/xio.hpp>
-#include <xtensor/xview.hpp>
-#include <xtensor/xcsv.hpp>
-#include <xtensor/xrandom.hpp>
-
 #include "OdeSolver.h"
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
+std::vector<std::string> colors = {"IndianRed", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue"};
 
 void odesystem(const std::vector<double> &u , std::vector<double> &dudt , const double /* t */) {
     double rb = 0.2, 
@@ -17,39 +12,9 @@ void odesystem(const std::vector<double> &u , std::vector<double> &dudt , const 
     double N = u[1];    
     dudt[0] = rb*B/(1 + B) - lnb*N*B;
     dudt[1] = sn*B*N - mn*N; 
-}
-
-bool isReferenceTime(std::vector<double> times, double ct){
-    int j = 0;
-    for (double t: times) {
-        if (abs(ct - t) <= 1.0E-06) {
-            //Remove t from times 
-            times.erase(times.begin()+j);
-            return true; 
-        }
-        j++;
-    }
-    return false; 
-}
-
-void createFile(std::string name, std::vector<std::string> varNames){
-    std::ofstream fp;
-    fp.open(name);
-    fp.close();
-}
-
-void save(std::string filename, double t, std::vector<double> values){
-    std::ofstream fp;    
-    std::stringstream ss;     
-    fp.open(filename, ios::app);
-    fp << t; 
-    for (double v: values)
-        fp << "," << v;        
-    fp << endl; 
-    fp.close();    
 }  
 
-void solve(ODE *ode, double tfinal, double dt, std::vector<double> times, std::vector<std::string> varNames, 
+void solve(ODE *ode, double tfinal, double dt, std::vector<std::string> varNames, 
                 std::vector<double> u0, std::string fname){
     double t = 0;
     ode->u = u0;
@@ -61,10 +26,8 @@ void solve(ODE *ode, double tfinal, double dt, std::vector<double> times, std::v
     
     for (t = dt; t <= tfinal; t += dt) {
         
-        c_stepper.stepper().do_step(ode->odeSystem, ode->u, t, dt);
-            
-        if (isReferenceTime(times,t))
-            save(fname,t,ode->u);    
+        c_stepper.stepper().do_step(ode->odeSystem, ode->u, t, dt);            
+        save(fname,t,ode->u);    
     }
 } 
 
@@ -84,6 +47,23 @@ std::vector<std::vector<double>> readCSV_MultidimensionalArray(std::string fname
     return array;
 }
 
+void createFile(std::string name, std::vector<std::string> varNames){
+    std::ofstream fp;
+    fp.open(name);
+    fp.close();
+}
+
+void save(std::string filename, double t, std::vector<double> values){
+    std::ofstream fp;    
+    std::stringstream ss;     
+    fp.open(filename, ios::app);
+    fp << t; 
+    for (double v: values)
+        fp << "," << v;        
+    fp << endl; 
+    fp.close();    
+}
+
 void plot(std::vector<double> times, int id, std::string vname, std::string fname){    
     std::vector<std::vector<double>> data = readCSV_MultidimensionalArray(fname);
     std::vector<double> col;
@@ -91,10 +71,10 @@ void plot(std::vector<double> times, int id, std::string vname, std::string fnam
         col.push_back(row.at(id));    
     }
     assert(times.size() == col.size());
-
+    
     plt::figure_size(1200, 780);
     plt::xlabel("days");
-    plt::plot(times, col, {{"label", vname}});
+    plt::plot(times, col, {{"label", vname}, {"color",colors[(id-1)%colors.size()]}, {"linewidth", "2"}});
     plt::legend();
     
     stringstream ss;
