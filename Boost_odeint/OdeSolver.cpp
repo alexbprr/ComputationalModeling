@@ -4,14 +4,14 @@ namespace plt = matplotlibcpp;
 std::vector<std::string> colors = {"IndianRed", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue"};
 
 void odesystem(const std::vector<double> &u , std::vector<double> &dudt , const double /* t */) {
-    double rb = 0.2, 
-    lnb = 0.05, 
-    sn = 0.1, 
-    mn = 0.1;
-    double B = u[0];
-    double N = u[1];    
-    dudt[0] = rb*B/(1 + B) - lnb*N*B;
-    dudt[1] = sn*B*N - mn*N; 
+    double beta = 0.006;
+    double v = 0.1; 
+    double S = u[0];
+    double I = u[1];  
+    double R = u[2];  
+    dudt[0] = -beta*S*I;
+    dudt[1] = beta*S*I - v*I;
+    dudt[2] = v*I;
 }  
 
 void solve(ODE *ode, double tfinal, double dt, std::vector<std::string> varNames, 

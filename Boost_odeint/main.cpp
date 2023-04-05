@@ -1,15 +1,15 @@
 #include "OdeSolver.h"
 
 int main(){
-    int tfinal = 10;
+    int tfinal = 50;
     double dt = 0.1;
 
     ODE ode(odesystem);         
     
-    std::vector<std::string> populations = {"Bacteria", "Neutrophil"};
+    std::vector<std::string> populations = {"S", "I", "R"};
     std::string fname = "output.csv";
     
-    solve(&ode,tfinal,dt,populations,{10,5},fname);
+    solve(&ode,tfinal,dt,populations,{100,2,0},fname);
 
     std::vector<double> times;
     for (double t = 0; t <= tfinal; t += dt)
