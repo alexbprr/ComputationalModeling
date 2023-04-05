@@ -56,7 +56,7 @@ std::pair<T*, T*> crossover(std::pair<T*, T*> parents, size_t chromosomeSize, fl
 }
 
 template <typename T>
-float* getFitnesses(T** population, size_t populationSize, float (*getFitness)(T*))
+float* getFitnesses(T** population, size_t populationSize, float (*getFitness)(T*), bool maximization)
 {
     float* fitnesses = new float[populationSize];
     for (size_t i = 0; i < populationSize; i++){
@@ -64,6 +64,17 @@ float* getFitnesses(T** population, size_t populationSize, float (*getFitness)(T
             fitnesses[i] = getFitness(population[i]);
         else 
             fitnesses[i] = 0; 
+    }
+    // Invert values on minimization problems
+    if (maximization == false) 
+    {
+        float maxFitness = std::numeric_limits<float>::min();
+        for (size_t i = 0; i < populationSize; i++)
+            if (fitnesses[i] > maxFitness)
+                maxFitness = fitnesses[i];
+
+        for (size_t i = 0; i < populationSize; i++)        
+            fitnesses[i] = maxFitness - fitnesses[i];
     }
     return fitnesses;
 }
@@ -80,12 +91,12 @@ void clear(T** population, size_t populationSize)
 
 template <typename T>
 T** geneticAlgorithm(size_t chromosomeSize, size_t populationSize, size_t maxNumGenerations, float crossoverRate, float mutationChance,
-  T** (*generateRandomPopulation)(size_t, size_t), float (*getFitness)(T*), void (*mutate)(T*, size_t))
+  T** (*generateRandomPopulation)(size_t, size_t), float (*getFitness)(T*), void (*mutate)(T*, size_t), bool maximization)
 {
     T** population = generateRandomPopulation(chromosomeSize, populationSize);
     for (size_t i = 0; i < maxNumGenerations; i++)
     {
-        float* fitnesses = getFitnesses(population, populationSize, getFitness);
+        float* fitnesses = getFitnesses(population, populationSize, getFitness, maximization);
         // Get upper bound
         float upperBound = 0;
         for (size_t i = 0; i < populationSize; i++)
@@ -147,11 +158,11 @@ float getFitness(float* chromosome){
 int main(){    
     std::cout << "Enter GA parameters: " << std::endl;
     std::cin >> minValue >> maxValue >> populationSize >> maxNumGenerations >> mutationChance >> crossoverRate;
-    int nParams = 1;
+    int nParams = 3;
 
     srand(time(0));
     float** solutions = geneticAlgorithm(nParams, populationSize, maxNumGenerations, crossoverRate, mutationChance,
-                &generateRandomPopulation, &getFitness, &mutate);    
+                &generateRandomPopulation, &getFitness, &mutate, false);    
 
     std::map<float, float*> orderedSolutions;
     for (size_t i = 0; i < populationSize; i++){
