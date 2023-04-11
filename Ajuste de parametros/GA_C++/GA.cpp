@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include <boost/numeric/odeint.hpp>
 
 template <typename T>
 std::pair<T*, T*> selectIndividuals(T** population, size_t populationSize, float* fitnesses, float upperBound) {
@@ -104,20 +105,54 @@ T** geneticAlgorithm(size_t chromosomeSize, size_t populationSize, size_t maxNum
             upperBound += fitnesses[i];
         }
         T** newPopulation = new T*[populationSize];
-        for (size_t j = 0; j < populationSize; )
+        for (size_t j = 0; j < populationSize; j++)
         {
             std::pair<T*, T*> parents = selectIndividuals(population, populationSize, fitnesses, upperBound);
             std::pair<T*, T*> children = crossover(parents, chromosomeSize, crossoverRate, mutationChance, mutate);
             newPopulation[j] = children.first;
+            //TO DO: verificar indice
             j++;
             newPopulation[j] = children.second;
-            j++;
         }    
         delete fitnesses;
         clear(population, populationSize);
         population = newPopulation;
     }
     return population;
+}
+
+using namespace boost::numeric::odeint;
+
+runge_kutta_cash_karp54<std::vector<double>> stepper; 
+double N0;
+double r, K, a, m;
+
+void odesystem( const std::vector<double> &u , std::vector<double> &dudt , const double /* t */ ) {
+    double H = u[0];
+    double P = u[1];        
+    dudt[0] = r*H - a*H*P;
+    dudt[1] = a*H*P - m*P;
+}
+
+std::vector<double> advance(double t, double dt, std::vector<double> u){ //to do: pass the parameters 
+    stepper.do_step(odesystem, u, t, dt);    
+    return u;
+}
+
+std::vector<std::vector<double>> readCSV_to_MultidimensionalArray(std::string fname){
+    std::ifstream f(fname);
+    std::string line, val;                  /* string for line & value */
+    std::vector<std::vector<double>> array;    /* vector of vector<int>  */
+
+    while (std::getline (f, line)) {        /* read each line */
+        std::vector<double> v;                 /* row vector v */
+        std::stringstream s (line);         /* stringstream line */
+        while (getline (s, val, ','))       /* get each value (',' delimited) */
+            v.push_back (std::stod (val));  /* add to row vector */
+        array.push_back (v);                /* add row vector to array */
+    }
+
+    return array;
 }
 
 // -------------------------------------------- Root fiding problem 
@@ -151,8 +186,43 @@ void mutate(float* chromosome, size_t index){
 }
 
 float getFitness(float* chromosome){
-    float x = chromosome[0];
-    return std::pow(x,2);
+    std::vector<std::vector<double> > data = readCSV_to_MultidimensionalArray("data.csv"); 
+    int s = data[0].size()-1;
+    std::vector<double> u;
+    u.reserve(s);
+    u.resize(s);
+
+    u[0] = 10; //condicao inicial da presa
+    u[1] = 2; //condicao inical do predador
+    r = chromosome[0]; 
+    a = chromosome[1];
+    m = chromosome[2];
+
+    double errorH = 0, errorP = 0, sumexactH = 0, sumexactP = 0; 
+    int i = 0;
+    double tfinal = 50, dt = 0.01;
+    for (double t = 0; t <= tfinal; t += dt){
+
+        if (abs(t - data[i][0]) < 0.01){
+            double H = data[i][1];
+            double P = data[i][2];
+            errorH += (u[0] - H)*(u[0] - H); //Soma dos quadrados dos erros entre N obtido pela EDO e o dado de N
+            sumexactH += H*H; //"Valor exato da população"
+            errorP += (u[1] - P)*(u[1] - P); //Soma dos quadrados dos erros entre N obtido pela EDO e o dado de N
+            sumexactP += P*P;
+
+            i++; 
+        }
+        //std::cout << data.size() << std::endl;
+        if (i >= data.size()) 
+            break;
+
+        u = advance(t,dt,u);
+    }
+    
+    errorH = sqrt(errorH/sumexactH); //Erro norma 2 */  
+    errorP = sqrt(errorP/sumexactP);
+    return errorH + errorP;
 }
 
 int main(){    
@@ -171,10 +241,12 @@ int main(){
     
     int count = 0;
     for (std::map<float, float*>::iterator it = orderedSolutions.begin(); it != orderedSolutions.end(); ++it){
-        std::cout << "#" << count++ << " x = " << it->second[0] << " (fitness = " << it->first << ")" << std::endl;
+        std::cout << "#" << count++ << " r = " << it->second[0] << ", a = " << it->second[1] 
+        << ", m = " << it->second[2] << " (fitness = " << it->first << ")" << std::endl;
     }
-    std::cout << "Best solution (min value) = " << orderedSolutions.begin()->second[0] << std::endl; 
-    std::cout << "Best solution (max value) = " << orderedSolutions.rbegin()->second[0] << std::endl; 
+
+    //std::cout << "Best solution (min value) = " << orderedSolutions.begin()->second[0] << std::endl; 
+    //std::cout << "Best solution (max value) = " << orderedSolutions.rbegin()->second[0] << std::endl; 
 
     clear(solutions, populationSize);
     return 0;
