@@ -1,0 +1,18 @@
+b = 0.0002
+k = 0.3
+s = 0.2
+m = 0.01
+a = 0.01
+k2 = 0.4
+p = 1
+
+#Variables used in initial conditions have to be marked as global
+initial E = 10000
+initial V = 5
+initial I = 0
+initial T = 10
+
+ode E' = -b*E*V 
+ode V' = p*a*I -k2*V
+ode I' = b*E*V -k*I*T -a*I
+ode T' = s*I -m*T
