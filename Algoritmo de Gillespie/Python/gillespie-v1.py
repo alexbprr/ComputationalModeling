@@ -6,11 +6,11 @@ import math
 import random
 
 pdf = PdfPages('sir-gillespiev1.pdf')
-tf = 10
-rs = 0.3 #nascimentos
-ms = 0. #morte natural
-beta = 0.01
-nu = 0.2
+tf = 20
+rs = 0.08 #nascimentos
+d = 0.3 #morte devido a doença
+beta = 1.8
+gamma = 0.35
 
 fig1 = plt.figure(figsize=(6,4))
 plt.title('Suscetíveis')
@@ -30,9 +30,9 @@ plt.xlabel('tempo')
 plt.ylabel('população')
 ax3 = fig3.gca()
 
-
 k = 0
 colorindex = 0.
+
 while k < 10:  
     random.seed(k)  
     times = []
@@ -43,15 +43,25 @@ while k < 10:
     i = 10
     r = 0
     t = 0
+
     sresult.append(s)
     iresult.append(i)
     rresult.append(r)
-    times.append(t)    
-    while t < tf:        
-        R1 = beta * s * i
-        R2 = nu * i
-        R3 = rs * s
-        R4 = ms * s
+    times.append(t)  
+
+    mortes = 0
+
+    while t < tf: 
+        N = s + i + r   
+
+        R1 = beta * s * (i/N)
+        R2 = gamma * i
+        R3 = rs * N
+        R4 = d * i
+
+        #if (8 <= t <= 10):
+            #Aplica vacinacao
+
         R = R1 + R2 + R3 + R4
         ran2 = random.uniform(0,1)
 
@@ -64,15 +74,20 @@ while k < 10:
         elif ran2 < (R1+R2+R3)/R:
             s = s + 1
         elif ran2 < (R1+R2+R3+R4)/R:
-            s = s - 1
+            i = i - 1
+            mortes += 1
+
         sresult.append(s)
         iresult.append(i)
         rresult.append(r)
+        
         ran = random.uniform(0,1)
         tau = - math.log(ran)/R
+        
         t = t + tau
         times.append(t)
         #print('t = ' + str(t) + '\n')
+        #print('numero de mortes ' + str(mortes))
 
     ax1.plot(times,sresult, color=(colorindex,colorindex,colorindex), label="S");
     ax2.plot(times,iresult, color=(colorindex,colorindex,colorindex), label="I")
