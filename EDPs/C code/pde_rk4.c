@@ -139,42 +139,48 @@ float *ode(float t, float b, float n){
 }
 
 float *rungeKutta(float *y0, float t, float h, functiontype f){
-    float k1, k2, k3, k4;
-    
-    float *y = y0;
+    float *y = y0;    
+    float *k1 = (float*) malloc(popsize*sizeof(float));
+    float *k2 = (float*) malloc(popsize*sizeof(float));
+    float *k3 = (float*) malloc(popsize*sizeof(float));
+    float *k4 = (float*) malloc(popsize*sizeof(float));
     float *v1 = f(t, y[0], y[1]);
-    k1 = h*v1[0];
-    float *v2 = f(t + 0.5*h, y[0] + 0.5*k1, y[1] + 0.5*k1);
-    k2 = h*v2[0];
-    float *v3 = f(t + 0.5*h, y[0] + 0.5*k2, y[1] + 0.5*k2);
-    k3 = h*v3[0];
-    float *v4 = f(t + h, y[0] + k3, y[1] + k3); 
-    k4 = h*v4[0];
+    for (int i = 0; i < popsize; i++)
+        k1[i] = h*v1[i];    
+    float *v2 = f(t + 0.5*h, y[0] + 0.5*k1[0], y[1] + 0.5*k1[1]);
+    for (int i = 0; i < popsize; i++)
+        k2[i] = h*v2[i];  
+    float *v3 = f(t + 0.5*h, y[0] + 0.5*k2[0], y[1] + 0.5*k2[1]);
+    for (int i = 0; i < popsize; i++)
+        k3[i] = h*v3[i];  
+    float *v4 = f(t + h, y[0] + k3[0], y[1] + k3[1]); 
+    for (int i = 0; i < popsize; i++)
+        k4[i] = h*v4[i];  
 
-    y[0] = y[0] + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4);
-
-    k1 = h*v1[1];
-    k2 = h*v2[1];
-    k3 = h*v3[1];
-    k4 = h*v4[1];
-    y[1] = y[1] + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4);
+    for (int i = 0; i < popsize; i++)
+        y[i] = y[i] + (1.0/6.0)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
 
     free(v1);
     free(v2);
     free(v3);
     free(v4);
+    free(k1);
+    free(k2);
+    free(k3);
+    free(k4);
     return y;
 }
 
 void solveReactions(float *u, int x, int y, float t, int tnext, int tprev){        
-    float b = u[getIndex(x,y,0,tprev)];
-    float n = u[getIndex(x,y,1,tprev)];
     float *Y = (float*) malloc(2*sizeof(float));
-    Y[0] = b;
-    Y[1] = n;
+    Y[0] = u[getIndex(x,y,0,tprev)];
+    Y[1] = u[getIndex(x,y,1,tprev)];
+    
     Y = rungeKutta(Y, t, dt, &(ode));
+    
     u[getIndex(x,y,0,tnext)] = Y[0];
     u[getIndex(x,y,1,tnext)] = Y[1]; 
+    
     free(Y);
 }
 
@@ -248,7 +254,7 @@ int main(){
             tprev = 0;
         }
 
-        // Solving the PDEs with operator splitting: First solve reactions then the diffusion                 
+        // Solving the PDEs with operator splitting: First solve reactions then the processes of movement                 
         #pragma omp parallel for num_threads(6) 
         for (int y = 0; y < ysize; y++) {
             for (int x = 0; x < xsize; x++) {             
