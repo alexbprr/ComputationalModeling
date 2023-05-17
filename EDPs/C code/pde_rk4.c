@@ -4,7 +4,7 @@
 #include <math.h>
 #include <omp.h>
 
-float T = 10;
+float T = 50;
 float dt = 0.001;
 float dy = 0.1;
 float dx = 0.1; 
@@ -17,12 +17,12 @@ int ysize;
 int popsize = 2; 
 
 float sn = 0.1;
-float kn = 0.05;
+float kn = 0.5;
 float lnb = 0.5;
 float rb = 0.02*10;
-float mn = 0.25;
+float mn = 0.2;
 float Dn = 0.05;
-float Db = 0.03;
+float Db = 0.01;
 float Xn = 0.4; 
 
 float verifyDensity(float value){
@@ -56,21 +56,22 @@ float chemotaxis(float *u, int x, int y, int pindex, int chindex, int t){
     }
     resx = (flux_left + flux_right)/dx;
 
+    flux_left = 0, flux_right = 0;
     if (y > 0) {
         float pm1 = u[getIndex(x,y-1,pindex,t)];
         float chm1 = u[getIndex(x,y-1,chindex,t)];
         if(ch - chm1 > 0)        
-            flux_left = -(ch - chm1)*pm1 /dx;         
+            flux_left = -(ch - chm1)*pm1 /dy;         
         else
-            flux_left = -(ch - chm1)*p /dx;         
+            flux_left = -(ch - chm1)*p /dy;
     }
     if(y < ysize-1) {
         float pp1 = u[getIndex(x,y+1,pindex,t)];
         float chp1 = u[getIndex(x,y+1,chindex,t)];
         if(chp1 - ch > 0)        
-            flux_right = (chp1 - ch)*p /dx; 
+            flux_right = (chp1 - ch)*p /dy; 
         else 
-            flux_right = (chp1 - ch)*pp1 /dx; 
+            flux_right = (chp1 - ch)*pp1 /dy; 
     }
     resy = (flux_left + flux_right)/dy;
     return resx + resy; 
@@ -132,38 +133,22 @@ void saveResults(FILE* arq, float* u, int p, int t){
 typedef float * (*functiontype)(float, float, float);
 
 float *ode(float t, float b, float n){
-    float *dudt = (float*) malloc(2*sizeof(float));
-    dudt[0] = rb*b - lnb*b*n/(1 + 0.1*b);
+    float *dudt = (float*) malloc(popsize*sizeof(float));
+    dudt[0] = rb*b - lnb*b*n/(1 + 0.01*b);
     dudt[1] = (sn - kn*n)*b - mn*n;
     return dudt;
 }
 
 float *rungeKutta(float *y0, float t, float h, functiontype f){
     float *y = y0;    
-    float *k1 = (float*) malloc(popsize*sizeof(float));
-    float *k2 = (float*) malloc(popsize*sizeof(float));
-    float *k3 = (float*) malloc(popsize*sizeof(float));
-    float *k4 = (float*) malloc(popsize*sizeof(float));
-    float *v1 = f(t, y[0], y[1]);
+    float *k1 = f(t, y[0], y[1]);
+    float *k2 = f(t + 0.5*h, y[0] + (h*0.5)*k1[0], y[1] + (h*0.5)*k1[1]);
+    float *k3 = f(t + 0.5*h, y[0] + (h*0.5)*k2[0], y[1] + (h*0.5)*k2[1]);
+    float *k4 = f(t + h, y[0] + h*k3[0], y[1] + h*k3[1]); 
+    
     for (int i = 0; i < popsize; i++)
-        k1[i] = h*v1[i];    
-    float *v2 = f(t + 0.5*h, y[0] + 0.5*k1[0], y[1] + 0.5*k1[1]);
-    for (int i = 0; i < popsize; i++)
-        k2[i] = h*v2[i];  
-    float *v3 = f(t + 0.5*h, y[0] + 0.5*k2[0], y[1] + 0.5*k2[1]);
-    for (int i = 0; i < popsize; i++)
-        k3[i] = h*v3[i];  
-    float *v4 = f(t + h, y[0] + k3[0], y[1] + k3[1]); 
-    for (int i = 0; i < popsize; i++)
-        k4[i] = h*v4[i];  
+        y[i] = y[i] + (h/6.0)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
 
-    for (int i = 0; i < popsize; i++)
-        y[i] = y[i] + (1.0/6.0)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
-
-    free(v1);
-    free(v2);
-    free(v3);
-    free(v4);
     free(k1);
     free(k2);
     free(k3);
@@ -172,7 +157,7 @@ float *rungeKutta(float *y0, float t, float h, functiontype f){
 }
 
 void solveReactions(float *u, int x, int y, float t, int tnext, int tprev){        
-    float *Y = (float*) malloc(2*sizeof(float));
+    float *Y = (float*) malloc(popsize*sizeof(float));
     Y[0] = u[getIndex(x,y,0,tprev)];
     Y[1] = u[getIndex(x,y,1,tprev)];
     
@@ -191,7 +176,7 @@ void solveDiffusion(float *u, int x, int y, float t, int tnext){
 
 int main(){
     int tprev, tnext;         
-    int nsteps = (int)T/dt;
+    int nsteps = (int)((T+dt)/dt);
     printf("T final: %.2f\n", T);
     printf("steps: %d\n", nsteps);   
     int interval = nsteps/10;
@@ -225,6 +210,8 @@ int main(){
         u[i] = 0;    
 
     u[getIndex(xsize/2,ysize/2,0,0)] = 100; 
+    u[getIndex(xsize/2-1,ysize/2,0,0)] = 100; 
+    u[getIndex(xsize/2+1,ysize/2,0,0)] = 100; 
     u[getIndex(xsize/2-5,ysize/2+5,0,0)] = 80;
     u[getIndex(10,10,0,0)] = 10; 
     u[getIndex(xsize-10,ysize-10,0,0)] = 50;
