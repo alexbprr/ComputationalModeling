@@ -19,11 +19,11 @@ int popsize = 2;
 float sn = 0.1;
 float kn = 0.5;
 float lnb = 0.5;
-float rb = 0.02*10;
+float rb = 0.05;
 float mn = 0.2;
 float Dn = 0.05;
 float Db = 0.01;
-float Xn = 0.4; 
+float Xn = 0.05; 
 
 float verifyDensity(float value){
     if (value < 0.) return 0.;
@@ -174,6 +174,10 @@ void solveDiffusion(float *u, int x, int y, float t, int tnext){
     u[getIndex(x,y,1,tnext)] += (Dn*diffusion(u,x,y,1,tnext))*dt;
 }
 
+void solveChemotaxis(float *u, int x, int y, float t, int tnext){
+    u[getIndex(x,y,1,tnext)] -= (Xn*chemotaxis(u,x,y,1,0,tnext))*dt;
+}
+
 int main(){
     int tprev, tnext;         
     int nsteps = (int)((T+dt)/dt);
@@ -253,6 +257,13 @@ int main(){
         for (int y = 0; y < ysize; y++) {
             for (int x = 0; x < xsize; x++) {             
                 solveDiffusion(u,x,y,t,tnext);                
+            }
+        }
+
+        #pragma omp parallel for num_threads(6) 
+        for (int y = 0; y < ysize; y++) {
+            for (int x = 0; x < xsize; x++) {             
+                solveChemotaxis(u,x,y,t,tnext); 
             }
         }
 
