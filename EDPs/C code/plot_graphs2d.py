@@ -4,11 +4,6 @@ import matplotlib.colors as colors
 import sys 
 import os
 
-dx = 0.1
-dy = 0.1
-xdim = int(sys.argv[2])
-ydim = int(sys.argv[3])  
-
 dataPath = 'results/'
 figPath = 'figs/'
 
