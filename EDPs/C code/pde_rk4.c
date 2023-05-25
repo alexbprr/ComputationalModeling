@@ -4,17 +4,17 @@
 #include <math.h>
 #include <omp.h>
 
-float T = 50;
+float tfinal = 50;
 float dt = 0.001;
 float dy = 0.1;
 float dx = 0.1; 
 
-float xdim = 6;
-float ydim = 4; 
+float xdim = 8;
+float ydim = 6; 
 
 int xsize;
 int ysize;
-int popsize = 2; 
+int popsize = 6; 
 
 float sn = 0.1;
 float kn = 0.5;
@@ -130,21 +130,32 @@ void saveResults(FILE* arq, float* u, int p, int t){
     fprintf(arq,"\n"); 
 }
 
-typedef float * (*functiontype)(float, float, float);
+typedef float * (*functiontype)(float, float, float, float, float, float);
 
-float *ode(float t, float b, float n){
+float* ode(float v, float i, float e, float t, float b, float a){
     float *dudt = (float*) malloc(popsize*sizeof(float));
-    dudt[0] = rb*b - lnb*b*n/(1 + 0.01*b);
-    dudt[1] = (sn - kn*n)*b - mn*n;
+    //Parâmetros do modelo 
+    dudt[0] = 0;
+    dudt[1] = 0;
+    dudt[2] = 0;
+    dudt[3] = 0;
+    dudt[4] = 0;
+    dudt[5] = 0;
     return dudt;
 }
 
-float *rungeKutta(float *y0, float t, float h, functiontype f){
+float* rungeKutta(float *y0, float t, float h, functiontype f){
     float *y = y0;    
-    float *k1 = f(t, y[0], y[1]);
-    float *k2 = f(t + 0.5*h, y[0] + (h*0.5)*k1[0], y[1] + (h*0.5)*k1[1]);
-    float *k3 = f(t + 0.5*h, y[0] + (h*0.5)*k2[0], y[1] + (h*0.5)*k2[1]);
-    float *k4 = f(t + h, y[0] + h*k3[0], y[1] + h*k3[1]); 
+    float *k1 = f(y[0], y[1], y[2], y[3], y[4], y[5]);
+    
+    float *k2 = f(y[0] + (h*0.5)*k1[0], y[1] + (h*0.5)*k1[1], y[2] + (h*0.5)*k1[2], 
+        y[3] + (h*0.5)*k1[3], y[4] + (h*0.5)*k1[4], y[5] + (h*0.5)*k1[5]);
+
+    float *k3 = f(y[0] + (h*0.5)*k2[0], y[1] + (h*0.5)*k2[1], y[2] + (h*0.5)*k2[2], 
+        y[3] + (h*0.5)*k2[3], y[4] + (h*0.5)*k2[4], y[5] + (h*0.5)*k2[5]);
+        
+    float *k4 = f(y[0] + h*k3[0], y[1] + h*k3[1], y[2] + h*k3[2], y[3] + h*k3[3], 
+        y[4] + h*k3[4], y[5] + h*k3[5]); 
     
     for (int i = 0; i < popsize; i++)
         y[i] = y[i] + (h/6.0)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
@@ -169,19 +180,30 @@ void solveReactions(float *u, int x, int y, float t, int tnext, int tprev){
     free(Y);
 }
 
-void solveDiffusion(float *u, int x, int y, float t, int tnext){
-    u[getIndex(x,y,0,tnext)] += (Db*diffusion(u,x,y,0,tnext))*dt;
-    u[getIndex(x,y,1,tnext)] += (Dn*diffusion(u,x,y,1,tnext))*dt;
+void solveDiffusion(float *u, float *utemp, int x, int y, float t, int tnext){
+    utemp[getIndex(x,y,0,tnext)] = u[getIndex(x,y,0,tnext)] + (Db*diffusion(u,x,y,0,tnext))*dt;
+    utemp[getIndex(x,y,1,tnext)] = u[getIndex(x,y,1,tnext)] + (Dn*diffusion(u,x,y,1,tnext))*dt;
 }
 
-void solveChemotaxis(float *u, int x, int y, float t, int tnext){
-    u[getIndex(x,y,1,tnext)] -= (Xn*chemotaxis(u,x,y,1,0,tnext))*dt;
+void solveChemotaxis(float *u, float *utemp, int x, int y, float t, int tnext){
+    utemp[getIndex(x,y,1,tnext)] = u[getIndex(x,y,1,tnext)] - (Xn*chemotaxis(u,x,y,1,0,tnext))*dt;
+}
+
+void copyArray(float *u, float *utemp, int tnext){
+    #pragma omp parallel for num_threads(6) 
+    for (int y = 0; y < ysize; y++) {
+        for (int x = 0; x < xsize; x++) {
+            //Para cada populacao, copiar utemp para u
+            for (int i = 0; i < popsize; i++)
+                u[getIndex(x,y,i,tnext)] = utemp[getIndex(x,y,i,tnext)];
+        }
+    }
 }
 
 int main(){
     int tprev, tnext;         
-    int nsteps = (int)((T+dt)/dt);
-    printf("T final: %.2f\n", T);
+    int nsteps = (int)((tfinal+dt)/dt);
+    printf("T final: %.2f\n", tfinal);
     printf("steps: %d\n", nsteps);   
     int interval = nsteps/10;
     printf("interval: %d\n", interval); 
@@ -203,15 +225,19 @@ int main(){
     fclose(yFile);
 
     FILE *tFile = fopen("results/t.csv", "w");
-    for (float t = 0; t < T+dt; t += dt)
+    for (float t = 0; t < tfinal+dt; t += dt)
         fprintf(tFile, "%.6lf\n", t);
     fclose(tFile);
 
     int totalsize = (popsize)*ysize*xsize*2;
     printf("total size: %d\n", totalsize);
     float *u = (float*) malloc(totalsize*sizeof(float));
-    for (int i = 0; i < totalsize; i++)
-        u[i] = 0;    
+    float *utemp = (float*) malloc(totalsize*sizeof(float));
+
+    for (int i = 0; i < totalsize; i++) {
+        u[i] = 0;  
+        utemp[i] = 0;
+    } 
 
     u[getIndex(xsize/2,ysize/2,0,0)] = 100; 
     u[getIndex(xsize/2-1,ysize/2,0,0)] = 100; 
@@ -256,16 +282,29 @@ int main(){
         #pragma omp parallel for num_threads(6) 
         for (int y = 0; y < ysize; y++) {
             for (int x = 0; x < xsize; x++) {             
-                solveDiffusion(u,x,y,t,tnext);                
+                solveDiffusion(u,utemp,x,y,t,tnext);                
             }
         }
+
+        copyArray(u,utemp,tnext);
 
         #pragma omp parallel for num_threads(6) 
         for (int y = 0; y < ysize; y++) {
             for (int x = 0; x < xsize; x++) {             
-                solveChemotaxis(u,x,y,t,tnext); 
+                solveChemotaxis(u,utemp,x,y,t,tnext);                 
             }
         }
+
+        copyArray(u,utemp,tnext);
+
+        /*//Test 
+        float totalB = 0;
+        for (int y = 0; y < ysize; y++) {
+            for (int x = 0; x < xsize; x++) {             
+                totalB += u[getIndex(x,y,0,tnext)];                
+            }
+        }
+        printf("total de bacterias: %f\n", totalB);*/
 
         if (step % interval == 0) {
             char bname[100], nname[100];
@@ -283,5 +322,6 @@ int main(){
     }
 
     free(u);
+    free(utemp);
     return 0; 
 }
