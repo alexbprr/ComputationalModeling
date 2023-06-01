@@ -1,0 +1,6 @@
+[submodule "Automatos Celulares/cellular-automata"]
+	path = Automatos Celulares/cellular-automata
+	url = https://github.com/Syndelis/cellular-automata
+[submodule "AutomatosCelulares/cellular-automata"]
+	path = AutomatosCelulares/cellular-automata
+	url = https://github.com/Syndelis/cellular-automata
